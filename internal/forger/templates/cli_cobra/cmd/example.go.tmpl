@@ -1,0 +1,20 @@
+package cmd
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+)
+
+var exampleCmd = &cobra.Command{
+	Use:   "example",
+	Short: "An example command",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println("This is an example command. Replace it with your own logic.")
+		return nil
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(exampleCmd)
+}

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Iwe-Coumou/forge/internal/config"
-	"github.com/Iwe-Coumou/forge/internal/scaffold"
+	"github.com/Iwe-Coumou/forge/internal/forger"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -39,8 +39,14 @@ func runNew(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("resolving module path: %w", err)
 	}
 
-	color.Cyan("Creating %q at %s\n", projectName, outputDir)
-	if err := scaffold.New(projectName, modulePath, outputDir, template); err != nil {
+	projectParams := &forger.Project{
+		Name:       projectName,
+		ModulePath: modulePath,
+		OutputDir:  outputDir,
+		Template:   template,
+	}
+
+	if err := forger.Forge(projectParams, verbose); err != nil {
 		return fmt.Errorf("scaffolding: %w", err)
 	}
 
