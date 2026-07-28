@@ -4,8 +4,21 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
+
+const banner = `
+░██████████                                          
+░██                                                  
+░██         ░███████  ░██░████  ░████████  ░███████  
+░█████████ ░██    ░██ ░███     ░██    ░██ ░██    ░██ 
+░██        ░██    ░██ ░██      ░██    ░██ ░█████████ 
+░██        ░██    ░██ ░██      ░██   ░███ ░██        
+░██         ░███████  ░██       ░█████░██  ░███████  
+                                      ░██            
+                                ░███████            
+`
 
 var verbose bool
 
@@ -14,13 +27,14 @@ var rootCmd = &cobra.Command{
 	Short: "Forge is a scaffolding CLI to create Go project.",
 	Long:  "Long description",
 	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Print(banner)
 		cmd.Help()
 	},
 }
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		color.Red(err.Error())
 		os.Exit(1)
 	}
 }
