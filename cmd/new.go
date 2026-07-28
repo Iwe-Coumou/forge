@@ -51,13 +51,13 @@ func runNew(cmd *cobra.Command, args []string) error {
 	if err := forger.Forge(projectParams, verbose); err != nil {
 		return fmt.Errorf("scaffolding: %w", err)
 	}
-	color.Green("Forged succesfully\n")
+	color.Green("Forged successfully\n")
 
 	postProcessOptions := &forger.PostProcessOptions{GitInit: gitInit}
 	if err := forger.PostProcess(projectParams.OutputDir, postProcessOptions, verbose); err != nil {
 		return fmt.Errorf("post-processing: %w", err)
 	}
-	color.Green("Post-processing succesful")
+	color.Green("Post-processing successful")
 
 	return nil
 }
