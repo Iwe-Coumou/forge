@@ -12,16 +12,18 @@ import (
 )
 
 var projectPath string
+var gitInit bool
 
 var newCmd = &cobra.Command{
 	Use:   "new [template] [project-name]",
-	Short: "Scaffold a new project from a template",
+	Short: "Forge a new project from a template",
 	Args:  cobra.ExactArgs(2),
 	RunE:  runNew,
 }
 
 func init() {
 	newCmd.Flags().StringVarP(&projectPath, "path", "p", "", "Go module path (defaults to current directory name)")
+	newCmd.Flags().BoolVarP(&gitInit, "git", "g", false, "Initialize git repository in the new project")
 	rootCmd.AddCommand(newCmd)
 }
 
@@ -49,8 +51,14 @@ func runNew(cmd *cobra.Command, args []string) error {
 	if err := forger.Forge(projectParams, verbose); err != nil {
 		return fmt.Errorf("scaffolding: %w", err)
 	}
+	color.Green("Forged succesfully\n")
 
-	color.Green("Forged succesfully")
+	postProcessOptions := &forger.PostProcessOptions{GitInit: gitInit}
+	if err := forger.PostProcess(projectParams.OutputDir, postProcessOptions, verbose); err != nil {
+		return fmt.Errorf("post-processing: %w", err)
+	}
+	color.Green("Post-processing succesful")
+
 	return nil
 }
 
