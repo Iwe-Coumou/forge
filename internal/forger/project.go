@@ -34,7 +34,7 @@ func (p *Project) validate() error {
 	}
 
 	if info, err := os.Stat(p.OutputDir); err == nil && info.IsDir() {
-		entries, err := templateFS.ReadDir(p.OutputDir)
+		entries, err := os.ReadDir(p.OutputDir)
 		if err != nil {
 			return fmt.Errorf("checking output directory: %w", err)
 		}

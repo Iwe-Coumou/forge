@@ -35,6 +35,10 @@ func Forge(p *Project, verbose bool) error {
 			return nil
 		}
 
+		if d.Name() == "template.yaml" {
+			return nil
+		}
+
 		relPath, err := filepath.Rel(templateRoot, path)
 		if err != nil {
 			return err
