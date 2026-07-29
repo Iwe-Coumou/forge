@@ -23,7 +23,8 @@ const banner = `
 var verbose bool
 
 // version is set at build time via:
-//   go build -ldflags "-X github.com/Iwe-Coumou/forge/cmd.version=v1.0.0"
+//
+//	go build -ldflags "-X github.com/Iwe-Coumou/forge/cmd.version=v1.0.0"
 var version = "dev"
 
 var rootCmd = &cobra.Command{
@@ -38,6 +39,7 @@ formats the result, and can optionally initialize a git repository.`,
 	Version: version,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Print(banner)
+		color.HiBlack("  %s\n\n", version)
 		cmd.Help()
 	},
 }
