@@ -30,7 +30,12 @@ func init() {
 }
 
 func runNew(cmd *cobra.Command, args []string) error {
-	lang, tmplName, err := forger.ParseTemplateID(args[0])
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	lang, tmplName, err := forger.ParseTemplateID(cfg, args[0])
 	if err != nil {
 		return err
 	}
@@ -39,11 +44,6 @@ func runNew(cmd *cobra.Command, args []string) error {
 	outputDir, err := resolveOutputDir(projectName)
 	if err != nil {
 		return fmt.Errorf("resolving output directory: %w", err)
-	}
-
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
 	}
 
 	projectParams := &forger.Project{

@@ -157,6 +157,81 @@ func TestPythonContextRenders(t *testing.T) {
 	}
 }
 
+// TestForgeRendersUserTemplate is the end-to-end proof that a template living
+// outside the binary works: it is found, parsed from its own source, and gets
+// the same render context an embedded template would.
+func TestForgeRendersUserTemplate(t *testing.T) {
+	cfg, _ := userTemplates(t, "go", "minimal", map[string]string{
+		"template.yaml": "language: go\nshort: \"Minimal\"\nlong: \"Minimal.\"\n",
+		"go.mod.tmpl":   "module {{.ModulePath}}\n\ngo {{.GoVersion}}\n",
+		"main.go.tmpl":  "package main\n\n// by {{.Author}}\nfunc main() { println(\"{{.Name}}\") }\n",
+	})
+	cfg.Author = "Ada Lovelace"
+	cfg.Languages = map[string]map[string]string{"go": {"base_module": "example.com/ada"}}
+
+	outputDir := filepath.Join(t.TempDir(), "demo")
+	p := &Project{
+		Name:      "demo",
+		OutputDir: outputDir,
+		Language:  "go",
+		Template:  "minimal",
+	}
+
+	if err := Forge(p, cfg, false); err != nil {
+		t.Fatalf("Forge() error = %v", err)
+	}
+
+	got := renderedFiles(t, outputDir)
+	want := []string{"go.mod", "main.go"}
+	if len(got) != len(want) {
+		t.Fatalf("rendered files = %v, want %v", got, want)
+	}
+
+	goMod, err := os.ReadFile(filepath.Join(outputDir, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(goMod), "module example.com/ada/demo") {
+		t.Errorf("go.mod = %s, want the configured base module applied", goMod)
+	}
+	if !strings.Contains(string(goMod), "go 1.22") {
+		t.Errorf("go.mod = %s, want the language's default Go version", goMod)
+	}
+
+	mainGo, err := os.ReadFile(filepath.Join(outputDir, "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mainGo), "by Ada Lovelace") {
+		t.Errorf("main.go = %s, want the configured author", mainGo)
+	}
+}
+
+// TestForgeRejectsUnknownTemplate covers the check that moved out of
+// validate() into findTemplate: an unresolvable template must fail before
+// anything is written.
+func TestForgeRejectsUnknownTemplate(t *testing.T) {
+	outputDir := filepath.Join(t.TempDir(), "myproj")
+
+	p := &Project{
+		Name:      "myproj",
+		OutputDir: outputDir,
+		Language:  "go",
+		Template:  "does_not_exist",
+	}
+
+	err := Forge(p, embeddedOnly(t), false)
+	if err == nil {
+		t.Fatal("Forge() = nil, want error for an unknown template")
+	}
+	if !strings.Contains(err.Error(), "unknown template") {
+		t.Errorf("Forge() error = %v, want it to say the template is unknown", err)
+	}
+	if _, statErr := os.Stat(outputDir); !os.IsNotExist(statErr) {
+		t.Errorf("Forge() created %s, want no output for an unknown template", outputDir)
+	}
+}
+
 func TestForgeRejectsUnknownOverride(t *testing.T) {
 	p := &Project{
 		Name:      "myproj",

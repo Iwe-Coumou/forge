@@ -3,11 +3,13 @@ package forger
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/Iwe-Coumou/forge/v2/internal/config"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -20,6 +22,10 @@ type TemplateInfo struct {
 	// NotImplemented is non-empty when the template's language is registered
 	// but not yet usable, and holds the reason why.
 	NotImplemented string
+
+	// Source is where this template was found: "embedded", or the user
+	// template directory it came from.
+	Source string
 }
 
 // ID returns the qualified "language/name" identifier used on the CLI.
@@ -49,34 +55,65 @@ type TemplateDetail struct {
 	Keys Keys
 }
 
-// ListTemplates returns metadata for every available template.
-func ListTemplates() ([]TemplateInfo, error) {
-	langs, err := templateFS.ReadDir("templates")
-	if err != nil {
-		return nil, err
+type templateSource struct {
+	fsys  fs.FS
+	label string // "embedded", or the directory path, for diagnostics
+}
+
+// templateSources returns the sources to search, embedded first.
+func templateSources(cfg *config.Config) []templateSource {
+	sources := []templateSource{{fsys: embeddedTemplates(), label: "embedded"}}
+
+	dir, err := cfg.TemplatesDir()
+	if err != nil || dir == "" {
+		return sources
+	}
+	if info, statErr := os.Stat(dir); statErr != nil || !info.IsDir() {
+		return sources // absent is normal, not an error
 	}
 
-	var templates []TemplateInfo
-	for _, lang := range langs {
-		if !lang.IsDir() {
-			continue
-		}
+	return append(sources, templateSource{fsys: os.DirFS(dir), label: dir})
+}
 
-		entries, err := templateFS.ReadDir("templates/" + lang.Name())
+// ListTemplates returns metadata for every available template.
+func ListTemplates(cfg *config.Config) ([]TemplateInfo, error) {
+	var templates []TemplateInfo
+	seen := map[string]string{}
+
+	for _, src := range templateSources(cfg) {
+		langs, err := fs.ReadDir(src.fsys, ".")
 		if err != nil {
 			return nil, err
 		}
 
-		for _, e := range entries {
-			if !e.IsDir() {
+		for _, lang := range langs {
+			if !lang.IsDir() {
 				continue
 			}
 
-			info, err := readTemplateInfo(lang.Name(), e.Name())
+			entries, err := fs.ReadDir(src.fsys, lang.Name())
 			if err != nil {
 				return nil, err
 			}
-			templates = append(templates, info)
+
+			for _, e := range entries {
+				if !e.IsDir() {
+					continue
+				}
+
+				info, err := readTemplateInfo(src.fsys, lang.Name(), e.Name())
+				if err != nil {
+					return nil, err
+				}
+				info.Source = src.label
+
+				if prev, dup := seen[info.ID()]; dup {
+					return nil, fmt.Errorf("template %s defined in both %s and %s", info.ID(), prev, src.label)
+				}
+				seen[info.ID()] = src.label
+
+				templates = append(templates, info)
+			}
 		}
 	}
 
@@ -85,14 +122,14 @@ func ListTemplates() ([]TemplateInfo, error) {
 
 // readTemplateInfo loads one template's metadata. A template with no
 // template.yaml is still valid, just undescribed.
-func readTemplateInfo(lang, name string) (TemplateInfo, error) {
+func readTemplateInfo(fsys fs.FS, lang, name string) (TemplateInfo, error) {
 	info := TemplateInfo{Language: lang, Name: name}
 
 	if l, err := lookupLanguage(lang); err == nil {
 		info.NotImplemented = notImplementedReason(l)
 	}
 
-	data, err := templateFS.ReadFile(path.Join("templates", lang, name, "template.yaml"))
+	data, err := fs.ReadFile(fsys, path.Join(lang, name, "template.yaml"))
 	if err != nil {
 		return info, nil
 	}
@@ -109,7 +146,7 @@ func readTemplateInfo(lang, name string) (TemplateInfo, error) {
 
 // ParseTemplateID splits a "language/template" argument into its parts
 // and verifies the template exists.
-func ParseTemplateID(arg string) (string, string, error) {
+func ParseTemplateID(cfg *config.Config, arg string) (string, string, error) {
 	arg = strings.ReplaceAll(arg, "\\", "/")
 
 	lang, name, found := strings.Cut(arg, "/")
@@ -117,28 +154,28 @@ func ParseTemplateID(arg string) (string, string, error) {
 		return "", "", fmt.Errorf("invalid template %q, want language/template (e.g. go/cli_cobra)", arg)
 	}
 
-	if !templateExists(lang, name) {
-		return "", "", fmt.Errorf("unknown template %q", arg)
+	if _, err := findTemplate(cfg, lang, name); err != nil {
+		return "", "", err
 	}
 
 	return lang, name, nil
 }
 
-func templateExists(lang, name string) bool {
-	_, err := fs.Stat(templateFS, "templates/"+lang+"/"+name+"/template.yaml")
+func templateExists(fsys fs.FS, lang, name string) bool {
+	_, err := fs.Stat(fsys, path.Join(lang, name, "template.yaml"))
 	return err == nil
 }
 
 // walkTemplate calls fn for every renderable file in a template. fsPath is
-// the file inside templateFS; relPath is its slash-separated destination
+// the file inside fsys; relPath is its slash-separated destination
 // relative to the project root, with any .tmpl suffix stripped.
 //
 // Forge and InspectTemplate both go through this, so what inspect lists is
 // exactly what forge writes.
-func walkTemplate(lang, name string, fn func(fsPath, relPath string) error) error {
-	root := "templates/" + lang + "/" + name
+func walkTemplate(fsys fs.FS, lang, name string, fn func(fsPath, relPath string) error) error {
+	root := path.Join(lang, name)
 
-	return fs.WalkDir(templateFS, root, func(p string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(fsys, root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -146,25 +183,30 @@ func walkTemplate(lang, name string, fn func(fsPath, relPath string) error) erro
 			return nil
 		}
 
-		rel, err := filepath.Rel(root, p)
-		if err != nil {
-			return err
-		}
+		rel := strings.TrimPrefix(p, root+"/")
+		dest := strings.TrimSuffix(rel, ".tmpl")
 
-		return fn(p, strings.TrimSuffix(filepath.ToSlash(rel), ".tmpl"))
+		// Templates can come from outside the binary, so a path must never
+		// escape the project directory or name a reserved device.
+		if !filepath.IsLocal(filepath.FromSlash(dest)) {
+			return fmt.Errorf("template file %q would escape the project directory", p)
+		}
+		return fn(p, dest)
 	})
 }
 
 // InspectTemplate returns the details of a single template.
-func InspectTemplate(lang, name string) (*TemplateDetail, error) {
-	if !templateExists(lang, name) {
-		return nil, fmt.Errorf("unknown template %q", lang+"/"+name)
-	}
-
-	info, err := readTemplateInfo(lang, name)
+func InspectTemplate(cfg *config.Config, lang, name string) (*TemplateDetail, error) {
+	src, err := findTemplate(cfg, lang, name)
 	if err != nil {
 		return nil, err
 	}
+
+	info, err := readTemplateInfo(src.fsys, lang, name)
+	if err != nil {
+		return nil, err
+	}
+	info.Source = src.label
 
 	detail := &TemplateDetail{TemplateInfo: info}
 
@@ -176,7 +218,7 @@ func InspectTemplate(lang, name string) (*TemplateDetail, error) {
 		detail.Keys = l.Keys()
 	}
 
-	if err := walkTemplate(lang, name, func(_, relPath string) error {
+	if err := walkTemplate(src.fsys, lang, name, func(_, relPath string) error {
 		detail.Files = append(detail.Files, relPath)
 		return nil
 	}); err != nil {
@@ -185,4 +227,14 @@ func InspectTemplate(lang, name string) (*TemplateDetail, error) {
 	sort.Strings(detail.Files)
 
 	return detail, nil
+}
+
+// findTemplate returns the source holding a template.
+func findTemplate(cfg *config.Config, lang, name string) (templateSource, error) {
+	for _, src := range templateSources(cfg) {
+		if templateExists(src.fsys, lang, name) {
+			return src, nil
+		}
+	}
+	return templateSource{}, fmt.Errorf("unknown template %q", lang+"/"+name)
 }

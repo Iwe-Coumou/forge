@@ -30,10 +30,6 @@ func (p *Project) validate() error {
 		return fmt.Errorf("project template is required")
 	}
 
-	if !templateExists(p.Language, p.Template) {
-		return fmt.Errorf("unknown template %q for language %q", p.Template, p.Language)
-	}
-
 	if info, err := os.Stat(p.OutputDir); err == nil && info.IsDir() {
 		entries, err := os.ReadDir(p.OutputDir)
 		if err != nil {

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Iwe-Coumou/forge/v2/internal/config"
 	"github.com/Iwe-Coumou/forge/v2/internal/forger"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -23,12 +24,17 @@ func init() {
 }
 
 func runInspect(cmd *cobra.Command, args []string) error {
-	lang, name, err := forger.ParseTemplateID(args[0])
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	lang, name, err := forger.ParseTemplateID(cfg, args[0])
 	if err != nil {
 		return err
 	}
 
-	detail, err := forger.InspectTemplate(lang, name)
+	detail, err := forger.InspectTemplate(cfg, lang, name)
 	if err != nil {
 		return err
 	}
@@ -54,6 +60,9 @@ func runInspect(cmd *cobra.Command, args []string) error {
 	}
 	if len(detail.Keys.Config) > 0 {
 		color.HiBlack("  config   %s\n", strings.Join(detail.Keys.Config, ", "))
+	}
+	if detail.Source != "" && detail.Source != "embedded" {
+		color.HiBlack("  source   %s\n", detail.Source)
 	}
 	fmt.Println()
 

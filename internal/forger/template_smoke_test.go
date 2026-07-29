@@ -13,7 +13,7 @@ import (
 // language's verify command — catching template files that don't produce
 // valid code. Templates whose toolchain isn't installed are skipped.
 func TestTemplatesCompile(t *testing.T) {
-	templates, err := ListTemplates()
+	templates, err := ListTemplates(embeddedOnly(t))
 	if err != nil {
 		t.Fatalf("ListTemplates() error = %v", err)
 	}
