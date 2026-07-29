@@ -29,7 +29,7 @@ var version = "dev"
 
 var rootCmd = &cobra.Command{
 	Use:   "forge",
-	Short: "Forge is a scaffolding CLI to create coding project.",
+	Short: "Forge is a scaffolding CLI to create coding projects.",
 	Long: `Forge is a scaffolding CLI for coding projects.
 
 Run "forge init" once to set your default module base path, "forge list"

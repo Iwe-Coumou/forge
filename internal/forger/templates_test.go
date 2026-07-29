@@ -90,6 +90,58 @@ func TestParseTemplateID(t *testing.T) {
 	}
 }
 
+func TestInspectTemplate(t *testing.T) {
+	detail, err := InspectTemplate("go", "cli_cobra")
+	if err != nil {
+		t.Fatalf("InspectTemplate() error = %v", err)
+	}
+
+	if detail.ID() != "go/cli_cobra" {
+		t.Errorf("ID() = %q, want %q", detail.ID(), "go/cli_cobra")
+	}
+	if detail.Short == "" {
+		t.Error("Short is empty, want the template.yaml description")
+	}
+	if detail.NotImplemented != "" {
+		t.Errorf("NotImplemented = %q, want empty for an implemented language", detail.NotImplemented)
+	}
+
+	// Same list TestForgeRendersTemplateFiles asserts against the rendered
+	// output — if these ever disagree, inspect is lying about what forge writes.
+	want := []string{"cmd/example.go", "cmd/root.go", "go.mod", "main.go"}
+	if len(detail.Files) != len(want) {
+		t.Fatalf("Files = %v, want %v", detail.Files, want)
+	}
+	for i, w := range want {
+		if detail.Files[i] != w {
+			t.Errorf("Files[%d] = %q, want %q (full list %v)", i, detail.Files[i], w, detail.Files)
+		}
+	}
+
+	if len(detail.VerifyCmd) == 0 {
+		t.Error("VerifyCmd is empty, want the language's verify command")
+	}
+}
+
+func TestInspectTemplate_ReportsUnimplemented(t *testing.T) {
+	detail, err := InspectTemplate("python", "cli")
+	if err != nil {
+		t.Fatalf("InspectTemplate() error = %v", err)
+	}
+	if detail.NotImplemented == "" {
+		t.Error("NotImplemented is empty, want a reason for a wip language")
+	}
+	if len(detail.Files) == 0 {
+		t.Error("Files is empty, want inspect to work for unimplemented languages")
+	}
+}
+
+func TestInspectTemplate_Unknown(t *testing.T) {
+	if _, err := InspectTemplate("go", "does_not_exist"); err == nil {
+		t.Fatal("InspectTemplate() = nil error, want error for an unknown template")
+	}
+}
+
 func TestTemplateInfoID(t *testing.T) {
 	got := TemplateInfo{Language: "go", Name: "cli_cobra"}.ID()
 	if got != "go/cli_cobra" {

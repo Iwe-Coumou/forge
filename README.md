@@ -65,6 +65,36 @@ forge list -v   # id and full description
 Templates marked `(wip)` belong to a language that is registered but not yet
 usable; `forge new` will refuse them and explain why.
 
+### `forge inspect [language/template]`
+
+Shows everything about a single template: its descriptions, the command used
+to verify a generated project, and the file tree it will produce.
+
+```sh
+forge inspect go/cli_cobra
+```
+
+```
+go/cli_cobra
+
+  Cobra-based CLI application
+
+  Scaffolds a CLI application using the Cobra framework, with a root
+  command and one example subcommand already wired up.
+
+  verify   go build ./...
+
+  files
+  ├── cmd
+  │   ├── example.go
+  │   └── root.go
+  ├── go.mod
+  └── main.go
+```
+
+The file list comes from the same traversal `forge new` uses, so it always
+matches what would actually be generated.
+
 ### `forge new [language/template] [project-name]`
 
 Scaffolds a new project from `language/template` into a directory named
