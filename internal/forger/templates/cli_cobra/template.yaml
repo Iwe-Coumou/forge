@@ -1,0 +1,6 @@
+# templates/cli_cobra/template.yaml
+short: "Cobra-based CLI application"
+long: >
+  Scaffolds a CLI application using the Cobra framework, with a root
+  command and one example subcommand already wired up. Includes a
+  go.mod pre-configured with the Cobra dependency.

@@ -1,7 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"github.com/Iwe-Coumou/forge/cmd"
+)
 
 func main() {
-	fmt.Println("Forging...")
+	cmd.Execute()
 }
