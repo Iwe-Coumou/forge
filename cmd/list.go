@@ -26,10 +26,19 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, t := range templates {
+		id := t.ID()
+		if t.NotImplemented != "" {
+			id += " (wip)"
+		}
+
 		if verbose {
-			color.Blue("%s\n %s\n\n", t.Name, t.Long)
+			color.Blue("%s\n %s\n", id, t.Long)
+			if t.NotImplemented != "" {
+				color.Yellow(" not implemented yet: %s\n", t.NotImplemented)
+			}
+			fmt.Println()
 		} else {
-			color.Blue("%-15s %s\n", t.Name, t.Short)
+			color.Blue("%-26s %s\n", id, t.Short)
 		}
 	}
 

@@ -31,42 +31,47 @@ func TestProjectValidate(t *testing.T) {
 	}{
 		{
 			name:    "missing name",
-			project: Project{ModulePath: "m", OutputDir: missingDir, Template: "cli_cobra"},
-			wantErr: true,
-		},
-		{
-			name:    "missing module path",
-			project: Project{Name: "n", OutputDir: missingDir, Template: "cli_cobra"},
+			project: Project{OutputDir: missingDir, Language: "go", Template: "cli_cobra"},
 			wantErr: true,
 		},
 		{
 			name:    "missing output dir",
-			project: Project{Name: "n", ModulePath: "m", Template: "cli_cobra"},
+			project: Project{Name: "n", Language: "go", Template: "cli_cobra"},
+			wantErr: true,
+		},
+		{
+			name:    "missing language",
+			project: Project{Name: "n", OutputDir: missingDir, Template: "cli_cobra"},
 			wantErr: true,
 		},
 		{
 			name:    "missing template",
-			project: Project{Name: "n", ModulePath: "m", OutputDir: missingDir},
+			project: Project{Name: "n", OutputDir: missingDir, Language: "go"},
 			wantErr: true,
 		},
 		{
 			name:    "unknown template",
-			project: Project{Name: "n", ModulePath: "m", OutputDir: missingDir, Template: "does_not_exist"},
+			project: Project{Name: "n", OutputDir: missingDir, Language: "go", Template: "does_not_exist"},
+			wantErr: true,
+		},
+		{
+			name:    "template exists but under a different language",
+			project: Project{Name: "n", OutputDir: missingDir, Language: "python", Template: "cli_cobra"},
 			wantErr: true,
 		},
 		{
 			name:    "output dir does not exist",
-			project: Project{Name: "n", ModulePath: "m", OutputDir: missingDir, Template: "cli_cobra"},
+			project: Project{Name: "n", OutputDir: missingDir, Language: "go", Template: "cli_cobra"},
 			wantErr: false,
 		},
 		{
 			name:    "output dir exists and is empty",
-			project: Project{Name: "n", ModulePath: "m", OutputDir: emptyDir, Template: "cli_cobra"},
+			project: Project{Name: "n", OutputDir: emptyDir, Language: "go", Template: "cli_cobra"},
 			wantErr: false,
 		},
 		{
 			name:    "output dir exists and is not empty",
-			project: Project{Name: "n", ModulePath: "m", OutputDir: nonEmptyDir, Template: "cli_cobra"},
+			project: Project{Name: "n", OutputDir: nonEmptyDir, Language: "go", Template: "cli_cobra"},
 			wantErr: true,
 		},
 	}

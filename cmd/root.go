@@ -23,23 +23,27 @@ const banner = `
 var verbose bool
 
 // version is set at build time via:
-//   go build -ldflags "-X github.com/Iwe-Coumou/forge/cmd.version=v1.0.0"
+//
+//	go build -ldflags "-X github.com/Iwe-Coumou/forge/cmd.version=v1.0.0"
 var version = "dev"
 
 var rootCmd = &cobra.Command{
 	Use:   "forge",
-	Short: "Forge is a scaffolding CLI to create Go project.",
-	Long: `Forge is a scaffolding CLI for Go projects.
+	Short: "Forge is a scaffolding CLI to create coding projects.",
+	Long: `Forge is a scaffolding CLI for coding projects.
 
 Run "forge init" once to set your default module base path, "forge list"
-to see the available templates, and "forge new <template> <name>" to
+to see the available templates, and "forge new <language/template> <name>" to
 generate a project. Forge renders the template, tidies its dependencies,
 formats the result, and can optionally initialize a git repository.`,
 	Version: version,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Print(banner)
+		color.HiBlack("  %s\n\n", version)
 		cmd.Help()
 	},
+	SilenceErrors: true,
+	SilenceUsage:  true,
 }
 
 func Execute() {

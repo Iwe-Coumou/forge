@@ -28,31 +28,33 @@ func init() {
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
-	var cfg config.Config
-	var err error
+	// One reader shared by both prompts — a second bufio.Reader over the same
+	// stdin would buffer ahead and swallow input the other one needs.
+	reader := bufio.NewReader(os.Stdin)
 
-	if useDefaults {
-		cfg = config.Default()
-	} else {
-		cfg, err = config.Interactive(os.Stdin, os.Stdout)
-		if err != nil {
-			return fmt.Errorf("reading input: %w", err)
-		}
-	}
-
+	// Confirm before asking anything, so an aborted run costs no answers.
 	exists, err := config.Exists()
 	if err != nil {
 		return fmt.Errorf("checking existing config: %w", err)
 	}
-
 	if exists {
-		overwrite, err := confirmOverwrite(os.Stdin, os.Stdout)
+		overwrite, err := confirmOverwrite(reader, os.Stdout)
 		if err != nil {
 			return fmt.Errorf("reading input: %w", err)
 		}
 		if !overwrite {
 			color.Yellow("Aborted.")
 			return nil
+		}
+	}
+
+	var cfg config.Config
+	if useDefaults {
+		cfg = config.Default()
+	} else {
+		cfg, err = config.Interactive(reader, os.Stdout)
+		if err != nil {
+			return fmt.Errorf("reading input: %w", err)
 		}
 	}
 
@@ -64,12 +66,13 @@ func runInit(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func confirmOverwrite(r io.Reader, w io.Writer) (bool, error) {
-	reader := bufio.NewReader(r)
+// confirmOverwrite asks before replacing an existing config. Anything other
+// than an explicit yes — including EOF — leaves the config alone.
+func confirmOverwrite(reader *bufio.Reader, w io.Writer) (bool, error) {
 	fmt.Fprint(w, "Config already exists. Overwrite? [y/N]: ")
 
 	input, err := reader.ReadString('\n')
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return false, err
 	}
 

@@ -3,58 +3,60 @@ package forger
 import (
 	"embed"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/template"
 
+	"github.com/Iwe-Coumou/forge/internal/config"
 	"github.com/fatih/color"
 )
 
-//go:embed templates
+//go:embed all:templates
 var templateFS embed.FS
 
-func Forge(p *Project, verbose bool) error {
+func Forge(p *Project, cfg *config.Config, verbose bool) error {
 	if err := p.validate(); err != nil {
 		return fmt.Errorf("invalid project: %w", err)
 	}
 
 	if verbose {
-		color.Cyan("forging %q from %q into %s\n", p.Name, p.Template, p.OutputDir)
+		color.Cyan("forging %q from %q into %s\n", p.Name, p.Language+"/"+p.Template, p.OutputDir)
 	}
 
-	templateRoot := "templates/" + p.Template
+	lang, err := lookupLanguage(p.Language)
+	if err != nil {
+		return err
+	}
+	if reason := notImplementedReason(lang); reason != "" {
+		return fmt.Errorf("%s support is not implemented yet: %s", lang.Name(), reason)
+	}
 
-	return fs.WalkDir(templateFS, templateRoot, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
+	// Validated centrally so a language can't forget to, and so a typo in
+	// either place fails before anything is written.
+	if err := checkOverrides(lang, p); err != nil {
+		return err
+	}
+	if err := CheckConfig(cfg); err != nil {
+		return err
+	}
 
-		if d.IsDir() {
-			return nil
-		}
+	ctx, err := lang.Context(p, cfg)
+	if err != nil {
+		return fmt.Errorf("getting context: %w", err)
+	}
 
-		if d.Name() == "template.yaml" {
-			return nil
-		}
-
-		relPath, err := filepath.Rel(templateRoot, path)
-		if err != nil {
-			return err
-		}
-		relPath = strings.TrimSuffix(relPath, ".tmpl")
-		destPath := filepath.Join(p.OutputDir, relPath)
+	return walkTemplate(p.Language, p.Template, func(fsPath, relPath string) error {
+		destPath := filepath.Join(p.OutputDir, filepath.FromSlash(relPath))
 
 		if verbose {
-			fmt.Printf("rendering %s -> %s\n", path, destPath)
+			fmt.Printf("rendering %s -> %s\n", fsPath, destPath)
 		}
 
 		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 			return err
 		}
 
-		tmpl, err := template.ParseFS(templateFS, path)
+		tmpl, err := template.ParseFS(templateFS, fsPath)
 		if err != nil {
 			return err
 		}
@@ -65,6 +67,6 @@ func Forge(p *Project, verbose bool) error {
 		}
 		defer out.Close()
 
-		return tmpl.Execute(out, p)
+		return tmpl.Execute(out, ctx)
 	})
 }

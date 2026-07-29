@@ -1,0 +1,6 @@
+language: python
+short: "Minimal Python CLI"
+long: >
+  Scaffolds a single-file Python CLI with a main() entry point guarded by
+  __main__. Work in progress — no packaging, dependency management, or
+  formatting is set up yet.

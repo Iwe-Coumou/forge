@@ -1,4 +1,5 @@
 # templates/cli_cobra/template.yaml
+language: go
 short: "Cobra-based CLI application"
 long: >
   Scaffolds a CLI application using the Cobra framework, with a root
