@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Iwe-Coumou/forge/internal/config"
+	"github.com/Iwe-Coumou/forge/v2/internal/config"
 )
 
 // Common holds the render-context fields every language provides.

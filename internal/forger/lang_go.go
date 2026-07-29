@@ -3,7 +3,7 @@ package forger
 import (
 	"fmt"
 
-	"github.com/Iwe-Coumou/forge/internal/config"
+	"github.com/Iwe-Coumou/forge/v2/internal/config"
 )
 
 // GoContext is the data Go templates are rendered against.

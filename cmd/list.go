@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/Iwe-Coumou/forge/internal/forger"
+	"github.com/Iwe-Coumou/forge/v2/internal/forger"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )

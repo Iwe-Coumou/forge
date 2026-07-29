@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Iwe-Coumou/forge/internal/config"
+	"github.com/Iwe-Coumou/forge/v2/internal/config"
 )
 
 // renderedFiles returns every file under dir, as slash-separated paths

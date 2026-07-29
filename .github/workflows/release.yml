@@ -31,7 +31,7 @@ jobs:
 
             echo "building $goos/$goarch"
             GOOS=$goos GOARCH=$goarch CGO_ENABLED=0 go build -trimpath \
-              -ldflags "-s -w -X github.com/Iwe-Coumou/forge/cmd.version=${GITHUB_REF_NAME}" \
+              -ldflags "-s -w -X github.com/Iwe-Coumou/forge/v2/cmd.version=${GITHUB_REF_NAME}" \
               -o "$binary" .
 
             archive="dist/forge_${GITHUB_REF_NAME}_${goos}_${goarch}"

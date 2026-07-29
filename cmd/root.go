@@ -24,7 +24,7 @@ var verbose bool
 
 // version is set at build time via:
 //
-//	go build -ldflags "-X github.com/Iwe-Coumou/forge/cmd.version=v1.0.0"
+//	go build -ldflags "-X github.com/Iwe-Coumou/forge/v2/cmd.version=v2.0.0"
 var version = "dev"
 
 var rootCmd = &cobra.Command{
