@@ -37,8 +37,7 @@ wired up, then runs `go mod tidy` and `gofmt -w` on the result.
 
 ### `forge init`
 
-Creates Forge's config file, used to resolve the Go module path for
-scaffolded projects.
+Creates Forge's config file, used to supply defaults for scaffolded projects.
 
 ```sh
 forge init            # interactive prompts
@@ -47,11 +46,42 @@ forge init --default  # skip prompts, use defaults
 
 The config lives at `<user config dir>/forge/config.yaml` (e.g.
 `~/.config/forge/config.yaml` on Linux, `%AppData%\forge\config.yaml` on
-Windows) and currently holds a single field:
+Windows):
 
 ```yaml
-base_module: github.com/you
+author: Ada Lovelace
+email: ada@example.com
+license: MIT
+git_init: true
+
+languages:
+  go:
+    base_module: github.com/you
+    go_version: "1.23"
+  python:
+    min_python: "3.12"
 ```
+
+| Field      | Effect                                                      |
+| ---------- | ----------------------------------------------------------- |
+| `author`   | Available to every template as `{{.Author}}`                 |
+| `email`    | Author contact, for templates that need it                   |
+| `license`  | Available to every template as `{{.License}}`                |
+| `git_init` | Default for `forge new --git`; the flag still overrides it   |
+
+Keys under `languages.<language>` mostly mirror what `--set` accepts, but the
+two sets are not identical — `module_path` is per-project so it is flag-only,
+and `base_module` is the shared prefix it's derived from, so it is
+config-only. Unknown keys are rejected rather than ignored, exactly as they
+are on the command line. Run `forge inspect <template>` to see both lists for
+a given language.
+
+`forge init` prompts for the top-level fields and the Go base module; other
+per-language keys are hand-edited. Press enter to accept any default.
+
+> A top-level `base_module:` key is still read for configs written before
+> languages were introduced, but is deprecated — `languages.go.base_module`
+> takes precedence, and new configs no longer write the old key.
 
 ### `forge list`
 
@@ -67,8 +97,9 @@ usable; `forge new` will refuse them and explain why.
 
 ### `forge inspect [language/template]`
 
-Shows everything about a single template: its descriptions, the command used
-to verify a generated project, and the file tree it will produce.
+Shows everything about a single template: its descriptions, the keys its
+language accepts, the command used to verify a generated project, and the
+file tree it will produce.
 
 ```sh
 forge inspect go/cli_cobra
@@ -83,6 +114,8 @@ go/cli_cobra
   command and one example subcommand already wired up.
 
   verify   go build ./...
+  --set    module_path, go_version
+  config   base_module, go_version
 
   files
   ├── cmd
@@ -123,12 +156,16 @@ Values resolve in this order, first match winning:
 2. Forge's config file
 3. The language's built-in default
 
-Unknown `--set` keys are rejected rather than ignored, so a typo fails loudly.
+Unknown keys are rejected rather than ignored — in both `--set` and the
+config file — so a typo fails loudly instead of silently doing nothing.
 
-| Language | Accepted `--set` keys      |
-| -------- | -------------------------- |
-| `go`     | `module_path`, `go_version` |
-| `python` | `min_python`                |
+| Language | `--set` keys                | `languages.<name>` config keys |
+| -------- | --------------------------- | ------------------------------ |
+| `go`     | `module_path`, `go_version` | `base_module`, `go_version`    |
+| `python` | `min_python`                | `min_python`                   |
+
+Each language declares both lists in one place, and `forge inspect` prints
+them, so this table can't drift out of sync without a test failing.
 
 ## Available templates
 
@@ -163,6 +200,9 @@ context, so the fields available depend on the language. Every language
 provides:
 
 - `{{.Name}}` — the project name
+- `{{.Author}}` — the configured author
+- `{{.License}}` — the configured license
+- `{{.Year}}` — the current year, for licence headers
 
 Go templates additionally get:
 
@@ -187,6 +227,14 @@ type rustLang struct{}
 func init() { RegisterLanguage(rustLang{}) }
 
 func (rustLang) Name() string { return "rust" }
+
+// The single source of truth for what --set and the config file accept.
+func (rustLang) Keys() Keys {
+	return Keys{
+		Flag:   []string{"edition"},
+		Config: []string{"edition"},
+	}
+}
 
 func (rustLang) Context(p *Project, cfg *config.Config) (any, error) { ... }
 

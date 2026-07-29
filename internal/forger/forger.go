@@ -20,7 +20,7 @@ func Forge(p *Project, cfg *config.Config, verbose bool) error {
 	}
 
 	if verbose {
-		color.Cyan("forging %q from %q into %s\n", p.Name, p.Template, p.OutputDir)
+		color.Cyan("forging %q from %q into %s\n", p.Name, p.Language+"/"+p.Template, p.OutputDir)
 	}
 
 	lang, err := lookupLanguage(p.Language)
@@ -29,6 +29,15 @@ func Forge(p *Project, cfg *config.Config, verbose bool) error {
 	}
 	if reason := notImplementedReason(lang); reason != "" {
 		return fmt.Errorf("%s support is not implemented yet: %s", lang.Name(), reason)
+	}
+
+	// Validated centrally so a language can't forget to, and so a typo in
+	// either place fails before anything is written.
+	if err := checkOverrides(lang, p); err != nil {
+		return err
+	}
+	if err := CheckConfig(cfg); err != nil {
+		return err
 	}
 
 	ctx, err := lang.Context(p, cfg)

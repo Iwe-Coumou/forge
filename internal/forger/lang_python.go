@@ -29,18 +29,18 @@ func (pythonLang) NotImplementedReason() string {
 	return "the templates are stubs and no formatting or packaging is set up"
 }
 
-func (pythonLang) Context(p *Project, cfg *config.Config) (any, error) {
-	if err := checkOverrides(p, "min_python"); err != nil {
-		return nil, err
+func (pythonLang) Keys() Keys {
+	return Keys{
+		Flag:   []string{"min_python"},
+		Config: []string{"min_python"},
 	}
+}
 
-	minPython := p.Overrides["min_python"]
-	if minPython == "" {
-		minPython = "3.11"
-	}
+func (pythonLang) Context(p *Project, cfg *config.Config) (any, error) {
+	minPython := setting(p, cfg, "min_python", "3.11")
 
 	return PythonContext{
-		Common:     Common{Name: p.Name},
+		Common:     commonContext(p, cfg),
 		DistName:   strings.ReplaceAll(p.Name, "_", "-"),
 		ImportName: strings.ReplaceAll(p.Name, "-", "_"),
 		MinPython:  minPython,

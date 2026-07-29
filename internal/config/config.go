@@ -9,7 +9,16 @@ import (
 )
 
 type Config struct {
-	BaseModule string `yaml:"base_module"`
+	// Deprecated: use languages.go.base_module. Still read so configs written
+	// before v0.x keep working; new configs no longer write this key.
+	BaseModule string `yaml:"base_module,omitempty"`
+
+	Author  string `yaml:"author,omitempty"`
+	Email   string `yaml:"email,omitempty"`
+	License string `yaml:"license,omitempty"`
+	GitInit bool   `yaml:"git_init,omitempty"`
+
+	Languages map[string]map[string]string `yaml:"languages"`
 }
 
 func Load() (*Config, error) {
@@ -75,7 +84,9 @@ func Exists() (bool, error) {
 
 func Default() Config {
 	return Config{
-		BaseModule: "local",
+		Languages: map[string]map[string]string{
+			"go": {"base_module": "local"},
+		},
 	}
 }
 
@@ -88,9 +99,19 @@ func configPath() (string, error) {
 	return filepath.Join(configDir, "forge", "config.yaml"), nil
 }
 
+// LanguageSettings returns a configured value for a language, or "" when it
+// isn't set.
+func (c *Config) LanguageSetting(lang, key string) string {
+	return c.Languages[lang][key]
+}
+
 func (c *Config) ModulePathFor(projectName string) string {
-	if c.BaseModule == "" {
+	base := c.LanguageSetting("go", "base_module")
+	if base == "" {
+		base = c.BaseModule
+	}
+	if base == "" {
 		return projectName
 	}
-	return c.BaseModule + "/" + projectName
+	return base + "/" + projectName
 }

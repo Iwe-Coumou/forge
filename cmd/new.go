@@ -23,7 +23,7 @@ var newCmd = &cobra.Command{
 }
 
 func init() {
-	newCmd.Flags().StringVarP(&projectPath, "path", "p", "", "Output directory for the project (defaults to current directory name)")
+	newCmd.Flags().StringVarP(&projectPath, "path", "p", "", "Directory to scaffold into (defaults to the current directory)")
 	newCmd.Flags().BoolVarP(&gitInit, "git", "g", false, "Initialize git repository in the new project")
 	newCmd.Flags().StringToStringVar(&overrides, "set", nil, "Override a language-specific value, e.g. --set module_path=github.com/me/x")
 	rootCmd.AddCommand(newCmd)
@@ -59,7 +59,14 @@ func runNew(cmd *cobra.Command, args []string) error {
 	}
 	color.Green("Forged successfully\n")
 
-	postProcessOptions := &forger.PostProcessOptions{GitInit: gitInit}
+	// The -g flag defaults to false, so "not passed" and "passed as false"
+	// look identical — Changed() is what lets config supply the default.
+	useGit := gitInit
+	if !cmd.Flags().Changed("git") {
+		useGit = cfg.GitInit
+	}
+
+	postProcessOptions := &forger.PostProcessOptions{GitInit: useGit}
 	if err := forger.PostProcess(projectParams, postProcessOptions, verbose); err != nil {
 		return fmt.Errorf("post-processing: %w", err)
 	}

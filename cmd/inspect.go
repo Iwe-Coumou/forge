@@ -47,8 +47,15 @@ func runInspect(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(detail.VerifyCmd) > 0 {
-		color.HiBlack("  verify\t%s\n\n", strings.Join(detail.VerifyCmd, " "))
+		color.HiBlack("  verify   %s\n", strings.Join(detail.VerifyCmd, " "))
 	}
+	if len(detail.Keys.Flag) > 0 {
+		color.HiBlack("  --set    %s\n", strings.Join(detail.Keys.Flag, ", "))
+	}
+	if len(detail.Keys.Config) > 0 {
+		color.HiBlack("  config   %s\n", strings.Join(detail.Keys.Config, ", "))
+	}
+	fmt.Println()
 
 	color.HiBlack("  files\n")
 	if len(detail.Files) == 0 {

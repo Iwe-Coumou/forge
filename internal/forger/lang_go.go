@@ -21,23 +21,25 @@ func init() {
 
 func (goLang) Name() string { return "go" }
 
-func (goLang) Context(p *Project, cfg *config.Config) (any, error) {
-	if err := checkOverrides(p, "module_path", "go_version"); err != nil {
-		return nil, err
+func (goLang) Keys() Keys {
+	return Keys{
+		// module_path is per-project, so it is flag-only; base_module is the
+		// shared prefix it is derived from, so it is config-only.
+		Flag:   []string{"module_path", "go_version"},
+		Config: []string{"base_module", "go_version"},
 	}
+}
 
+func (goLang) Context(p *Project, cfg *config.Config) (any, error) {
 	mod := p.Overrides["module_path"]
 	if mod == "" {
 		mod = cfg.ModulePathFor(p.Name)
 	}
 
-	goVersion := p.Overrides["go_version"]
-	if goVersion == "" {
-		goVersion = "1.22"
-	}
+	goVersion := setting(p, cfg, "go_version", "1.22")
 
 	return GoContext{
-		Common:     Common{Name: p.Name},
+		Common:     commonContext(p, cfg),
 		ModulePath: mod,
 		GoVersion:  goVersion,
 	}, nil

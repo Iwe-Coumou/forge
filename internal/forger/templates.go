@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 type TemplateInfo struct {
@@ -43,6 +43,10 @@ type TemplateDetail struct {
 	// VerifyCmd is the command that proves a generated project is valid.
 	// Empty when the template's language is not registered.
 	VerifyCmd []string
+
+	// Keys are the values this template's language exposes to --set and to
+	// the config file.
+	Keys Keys
 }
 
 // ListTemplates returns metadata for every available template.
@@ -169,6 +173,7 @@ func InspectTemplate(lang, name string) (*TemplateDetail, error) {
 	// refuse, and leave VerifyCmd empty.
 	if l, err := lookupLanguage(lang); err == nil {
 		detail.VerifyCmd = l.VerifyCmd()
+		detail.Keys = l.Keys()
 	}
 
 	if err := walkTemplate(lang, name, func(_, relPath string) error {
