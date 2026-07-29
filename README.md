@@ -1,5 +1,7 @@
 # Forge
 
+[![Latest release](https://img.shields.io/github/v/release/Iwe-Coumou/forge)](https://github.com/Iwe-Coumou/forge/releases/latest)
+
 Forge is a scaffolding CLI for Go projects. Point it at a template and a
 project name, and it generates a ready-to-build Go module — module path
 resolved, dependencies tidied, formatted, and optionally committed to git.
