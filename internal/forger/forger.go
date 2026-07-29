@@ -3,6 +3,7 @@ package forger
 import (
 	"embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -13,6 +14,16 @@ import (
 
 //go:embed all:templates
 var templateFS embed.FS
+
+// embeddedTemplates is templateFS rooted at the templates directory, so its
+// paths are <language>/<name>/...; the same shape as a user templates dir.
+var embeddedTemplates = func() fs.FS {
+	sub, err := fs.Sub(templateFS, "templates")
+	if err != nil {
+		panic("forger: " + err.Error())
+	}
+	return sub
+}
 
 func Forge(p *Project, cfg *config.Config, verbose bool) error {
 	if err := p.validate(); err != nil {
@@ -45,7 +56,11 @@ func Forge(p *Project, cfg *config.Config, verbose bool) error {
 		return fmt.Errorf("getting context: %w", err)
 	}
 
-	return walkTemplate(p.Language, p.Template, func(fsPath, relPath string) error {
+	src, err := findTemplate(cfg, p.Language, p.Template)
+	if err != nil {
+		return err
+	}
+	return walkTemplate(src.fsys, p.Language, p.Template, func(fsPath, relPath string) error {
 		destPath := filepath.Join(p.OutputDir, filepath.FromSlash(relPath))
 
 		if verbose {
@@ -56,7 +71,9 @@ func Forge(p *Project, cfg *config.Config, verbose bool) error {
 			return err
 		}
 
-		tmpl, err := template.ParseFS(templateFS, fsPath)
+		// Parse from the same source the walk came from: fsPath is relative to
+		// src.fsys, not to the raw embed.FS.
+		tmpl, err := template.ParseFS(src.fsys, fsPath)
 		if err != nil {
 			return err
 		}

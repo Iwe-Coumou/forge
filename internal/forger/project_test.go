@@ -49,16 +49,9 @@ func TestProjectValidate(t *testing.T) {
 			project: Project{Name: "n", OutputDir: missingDir, Language: "go"},
 			wantErr: true,
 		},
-		{
-			name:    "unknown template",
-			project: Project{Name: "n", OutputDir: missingDir, Language: "go", Template: "does_not_exist"},
-			wantErr: true,
-		},
-		{
-			name:    "template exists but under a different language",
-			project: Project{Name: "n", OutputDir: missingDir, Language: "python", Template: "cli_cobra"},
-			wantErr: true,
-		},
+		// Template existence is no longer validate()'s job — it needs the
+		// template sources, so Forge checks it via findTemplate. Covered by
+		// TestForgeRejectsUnknownTemplate and TestParseTemplateID.
 		{
 			name:    "output dir does not exist",
 			project: Project{Name: "n", OutputDir: missingDir, Language: "go", Template: "cli_cobra"},

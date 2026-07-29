@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -17,6 +18,8 @@ type Config struct {
 	Email   string `yaml:"email,omitempty"`
 	License string `yaml:"license,omitempty"`
 	GitInit bool   `yaml:"git_init,omitempty"`
+
+	TemplatesDirectory string `yaml:"templates_dir,omitempty"`
 
 	Languages map[string]map[string]string `yaml:"languages"`
 }
@@ -114,4 +117,35 @@ func (c *Config) ModulePathFor(projectName string) string {
 		return projectName
 	}
 	return base + "/" + projectName
+}
+
+// TemplatesDir returns where user templates live: the configured path if set,
+// otherwise a "templates" directory alongside the config file.
+func (c *Config) TemplatesDir() (string, error) {
+	if c.TemplatesDirectory != "" {
+		return expandHome(c.TemplatesDirectory)
+	}
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(configDir, "forge", "templates"), nil
+}
+
+// expandHome replaces a leading ~ with the user's home directory. Anything
+// else is returned unchanged. A bare ~ elsewhere in the path is a literal
+// directory name, not a shorthand.
+func expandHome(p string) (string, error) {
+	if p != "~" && !strings.HasPrefix(p, "~/") && !strings.HasPrefix(p, "~\\") {
+		return p, nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	if p == "~" {
+		return home, nil
+	}
+	return filepath.Join(home, p[2:]), nil
 }

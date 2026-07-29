@@ -58,6 +58,7 @@ author: Ada Lovelace
 email: ada@example.com
 license: MIT
 git_init: true
+templates_dir: ~/forge-templates
 
 languages:
   go:
@@ -67,12 +68,13 @@ languages:
     min_python: "3.12"
 ```
 
-| Field      | Effect                                                      |
-| ---------- | ----------------------------------------------------------- |
-| `author`   | Available to every template as `{{.Author}}`                 |
-| `email`    | Author contact, for templates that need it                   |
-| `license`  | Available to every template as `{{.License}}`                |
-| `git_init` | Default for `forge new --git`; the flag still overrides it   |
+| Field           | Effect                                                     |
+| --------------- | ---------------------------------------------------------- |
+| `author`        | Available to every template as `{{.Author}}`                |
+| `email`         | Available to every template as `{{.Email}}`                 |
+| `license`       | Available to every template as `{{.License}}`               |
+| `git_init`      | Default for `forge new --git`; the flag still overrides it  |
+| `templates_dir` | Where to look for your own templates — see [Your own templates](#your-own-templates) |
 
 Keys under `languages.<language>` mostly mirror what `--set` accepts, but the
 two sets are not identical — `module_path` is per-project so it is flag-only,
@@ -219,6 +221,42 @@ Python templates additionally get:
 - `{{.DistName}}` — the project name with underscores normalised to hyphens
 - `{{.ImportName}}` — the project name with hyphens normalised to underscores
 - `{{.MinPython}}` — the minimum Python version
+
+## Your own templates
+
+Templates don't have to be compiled into the binary. Anything under your
+templates directory is picked up automatically, with no rebuild:
+
+```
+<user config dir>/forge/templates/     # the default
+  go/
+    my_service/
+      template.yaml
+      go.mod.tmpl
+      main.go.tmpl
+```
+
+On Windows that's `%AppData%\forge\templates\`, on Linux
+`~/.config/forge/templates/`. Set `templates_dir` in the config to put them
+somewhere else — useful for keeping a team's templates in a git repo, or in
+your dotfiles.
+
+The layout and the `template.yaml` format are identical to the built-in
+templates described above, so a template works the same whether it ships in
+the binary or lives on disk. `forge list` marks yours `(user)`, and
+`forge inspect` shows which directory a template came from.
+
+Two constraints worth knowing:
+
+- **Only registered languages.** `template.yaml`'s `language:` must be one
+  Forge already knows about (`go`, `python`). You can add a new *template*
+  without rebuilding, but not a new *language*.
+- **Names must be unique.** A template whose id matches a built-in one is an
+  error naming both locations, not a silent override. If you want to replace
+  `go/cli_cobra`, give yours a different name.
+
+The directory not existing is normal and never an error — Forge just uses the
+embedded templates.
 
 ## Adding a language
 

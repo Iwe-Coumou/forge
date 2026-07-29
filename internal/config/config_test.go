@@ -1,8 +1,123 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
+
+// withTempHome points os.UserHomeDir() at a temp directory so ~ expansion is
+// deterministic. USERPROFILE is what Windows reads, HOME everywhere else.
+func withTempHome(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", dir)
+	} else {
+		t.Setenv("HOME", dir)
+	}
+	return dir
+}
+
+func TestTemplatesDir_ExpandsHome(t *testing.T) {
+	home := withTempHome(t)
+
+	cfg := &Config{TemplatesDirectory: "~/forge-templates"}
+	got, err := cfg.TemplatesDir()
+	if err != nil {
+		t.Fatalf("TemplatesDir() error = %v", err)
+	}
+
+	if want := filepath.Join(home, "forge-templates"); got != want {
+		t.Errorf("TemplatesDir() = %q, want %q", got, want)
+	}
+}
+
+func TestTemplatesDir_ExpandsBareTilde(t *testing.T) {
+	home := withTempHome(t)
+
+	cfg := &Config{TemplatesDirectory: "~"}
+	got, err := cfg.TemplatesDir()
+	if err != nil {
+		t.Fatalf("TemplatesDir() error = %v", err)
+	}
+	if got != home {
+		t.Errorf("TemplatesDir() = %q, want %q", got, home)
+	}
+}
+
+func TestTemplatesDir_LeavesOtherPathsAlone(t *testing.T) {
+	withTempHome(t)
+
+	// A ~ that isn't a leading shorthand is a legal directory name, and
+	// rewriting it would be surprising. ~otheruser has no portable expansion,
+	// so it stays literal and fails visibly rather than resolving wrongly.
+	tests := []string{
+		filepath.Join("relative", "templates"),
+		filepath.FromSlash("/opt/forge/templates"),
+		filepath.FromSlash("/opt/~/templates"),
+		"~otheruser/templates",
+	}
+
+	for _, want := range tests {
+		t.Run(want, func(t *testing.T) {
+			cfg := &Config{TemplatesDirectory: want}
+			got, err := cfg.TemplatesDir()
+			if err != nil {
+				t.Fatalf("TemplatesDir() error = %v", err)
+			}
+			if got != want {
+				t.Errorf("TemplatesDir() = %q, want it unchanged as %q", got, want)
+			}
+		})
+	}
+}
+
+func TestTemplatesDir_DefaultsAlongsideConfig(t *testing.T) {
+	withTempConfigDir(t)
+
+	got, err := (&Config{}).TemplatesDir()
+	if err != nil {
+		t.Fatalf("TemplatesDir() error = %v", err)
+	}
+
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(configDir, "forge", "templates"); got != want {
+		t.Errorf("TemplatesDir() = %q, want %q", got, want)
+	}
+}
+
+// TestSave_OmitsEmptyFields keeps a freshly written config free of noise. Every
+// optional field needs `omitempty`, otherwise `forge init` produces a file
+// littered with author: "", license: "" and friends.
+func TestSave_OmitsEmptyFields(t *testing.T) {
+	withTempConfigDir(t)
+
+	cfg := Default()
+	if err := Save(&cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	path, err := configPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, unwanted := range []string{`: ""`, "git_init: false"} {
+		if strings.Contains(string(data), unwanted) {
+			t.Errorf("written config contains %q — an optional field is missing `omitempty`:\n%s", unwanted, data)
+		}
+	}
+}
 
 // withTempConfigDir redirects os.UserConfigDir() to a temp directory for
 // the duration of the test, regardless of which OS it runs on.
