@@ -3,7 +3,7 @@ package forger
 import (
 	"strings"
 
-	"github.com/Iwe-Coumou/forge/internal/config"
+	"github.com/Iwe-Coumou/forge/v2/internal/config"
 )
 
 // PythonContext is the data Python templates are rendered against.

@@ -1,4 +1,4 @@
-module github.com/Iwe-Coumou/forge
+module github.com/Iwe-Coumou/forge/v2
 
 go 1.25.0
 

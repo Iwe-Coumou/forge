@@ -12,10 +12,15 @@ Templates are organised by language, so a template is named
 ## Installation
 
 ```sh
-go install github.com/Iwe-Coumou/forge@latest
+go install github.com/Iwe-Coumou/forge/v2@latest
 ```
 
 Requires Go 1.25+, and `git` on your `PATH` if you use `--git`.
+
+> **Upgrading from v1:** note the `/v2` in the install path — Go requires it
+> for major versions above one, so `@latest` on the old path stays on v1.
+> Template names are now qualified by language: `forge new cli_cobra myapp`
+> becomes `forge new go/cli_cobra myapp`. Existing config files keep working.
 
 ## Quick start
 

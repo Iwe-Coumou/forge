@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Iwe-Coumou/forge/internal/config"
+	"github.com/Iwe-Coumou/forge/v2/internal/config"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
