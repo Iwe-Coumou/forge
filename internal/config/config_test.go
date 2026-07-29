@@ -21,6 +21,26 @@ func TestDefault(t *testing.T) {
 	}
 }
 
+func TestModulePathFor(t *testing.T) {
+	tests := []struct {
+		name       string
+		baseModule string
+		want       string
+	}{
+		{name: "no base module configured", baseModule: "", want: "myproj"},
+		{name: "base module configured", baseModule: "github.com/someone", want: "github.com/someone/myproj"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{BaseModule: tt.baseModule}
+			if got := cfg.ModulePathFor("myproj"); got != tt.want {
+				t.Errorf("ModulePathFor() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestExists_NoConfig(t *testing.T) {
 	withTempConfigDir(t)
 

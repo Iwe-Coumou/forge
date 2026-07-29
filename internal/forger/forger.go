@@ -9,13 +9,14 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Iwe-Coumou/forge/internal/config"
 	"github.com/fatih/color"
 )
 
-//go:embed templates
+//go:embed all:templates
 var templateFS embed.FS
 
-func Forge(p *Project, verbose bool) error {
+func Forge(p *Project, cfg *config.Config, verbose bool) error {
 	if err := p.validate(); err != nil {
 		return fmt.Errorf("invalid project: %w", err)
 	}
@@ -24,7 +25,20 @@ func Forge(p *Project, verbose bool) error {
 		color.Cyan("forging %q from %q into %s\n", p.Name, p.Template, p.OutputDir)
 	}
 
-	templateRoot := "templates/" + p.Template
+	lang, err := lookupLanguage(p.Language)
+	if err != nil {
+		return err
+	}
+	if reason := notImplementedReason(lang); reason != "" {
+		return fmt.Errorf("%s support is not implemented yet: %s", lang.Name(), reason)
+	}
+
+	ctx, err := lang.Context(p, cfg)
+	if err != nil {
+		return fmt.Errorf("getting context: %w", err)
+	}
+
+	templateRoot := "templates/" + p.Language + "/" + p.Template
 
 	return fs.WalkDir(templateFS, templateRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -65,6 +79,6 @@ func Forge(p *Project, verbose bool) error {
 		}
 		defer out.Close()
 
-		return tmpl.Execute(out, p)
+		return tmpl.Execute(out, ctx)
 	})
 }

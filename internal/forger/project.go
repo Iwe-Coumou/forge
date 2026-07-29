@@ -6,10 +6,11 @@ import (
 )
 
 type Project struct {
-	Name       string
-	ModulePath string
-	OutputDir  string
-	Template   string
+	Name      string
+	OutputDir string
+	Language  string
+	Template  string
+	Overrides map[string]string // raw user input, e.g. --set module_path=...
 }
 
 func (p *Project) validate() error {
@@ -17,20 +18,20 @@ func (p *Project) validate() error {
 		return fmt.Errorf("project name is required")
 	}
 
-	if p.ModulePath == "" {
-		return fmt.Errorf("project module path is required")
-	}
-
 	if p.OutputDir == "" {
 		return fmt.Errorf("project output directory is required")
+	}
+
+	if p.Language == "" {
+		return fmt.Errorf("project language is required")
 	}
 
 	if p.Template == "" {
 		return fmt.Errorf("project template is required")
 	}
 
-	if !templateExists(p.Template) {
-		return fmt.Errorf("unknown template %q", p.Template)
+	if !templateExists(p.Language, p.Template) {
+		return fmt.Errorf("unknown template %q for language %q", p.Template, p.Language)
 	}
 
 	if info, err := os.Stat(p.OutputDir); err == nil && info.IsDir() {
@@ -44,17 +45,4 @@ func (p *Project) validate() error {
 	}
 
 	return nil
-}
-
-func templateExists(templateName string) bool {
-	entries, err := templateFS.ReadDir("templates")
-	if err != nil {
-		return false
-	}
-	for _, e := range entries {
-		if e.IsDir() && e.Name() == templateName {
-			return true
-		}
-	}
-	return false
 }

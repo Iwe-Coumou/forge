@@ -2,9 +2,12 @@
 
 [![Latest release](https://img.shields.io/github/v/release/Iwe-Coumou/forge)](https://github.com/Iwe-Coumou/forge/releases/latest)
 
-Forge is a scaffolding CLI for Go projects. Point it at a template and a
-project name, and it generates a ready-to-build Go module — module path
-resolved, dependencies tidied, formatted, and optionally committed to git.
+Forge is a scaffolding CLI. Point it at a template and a project name, and it
+generates a ready-to-build project — identifiers resolved, dependencies
+tidied, formatted, and optionally committed to git.
+
+Templates are organised by language, so a template is named
+`<language>/<template>` — for example `go/cli_cobra`.
 
 ## Installation
 
@@ -24,7 +27,7 @@ forge init
 forge list
 
 # Scaffold a new project
-forge new cli_cobra myapp
+forge new go/cli_cobra myapp
 ```
 
 This creates `./myapp` with a `go.mod`, `main.go`, and a Cobra root command
@@ -52,56 +55,128 @@ base_module: github.com/you
 
 ### `forge list`
 
-Lists the available templates.
+Lists the available templates by their `<language>/<template>` id.
 
 ```sh
-forge list      # name and short description
-forge list -v   # name and full description
+forge list      # id and short description
+forge list -v   # id and full description
 ```
 
-### `forge new [template] [project-name]`
+Templates marked `(wip)` belong to a language that is registered but not yet
+usable; `forge new` will refuse them and explain why.
 
-Scaffolds a new project from `template` into a directory named
+### `forge new [language/template] [project-name]`
+
+Scaffolds a new project from `language/template` into a directory named
 `project-name`.
 
 ```sh
-forge new cli_cobra myapp
-forge new cli_cobra myapp --path ../projects   # scaffold elsewhere
-forge new cli_cobra myapp --git                # git init + first commit
+forge new go/cli_cobra myapp
+forge new go/cli_cobra myapp --path ../projects   # scaffold elsewhere
+forge new go/cli_cobra myapp --git                # git init + first commit
+forge new go/cli_cobra myapp --set module_path=github.com/me/myapp
 ```
 
-The project's module path is `<base_module>/<project-name>` if a base
-module is configured, otherwise just `<project-name>`.
+By default the project's module path is `<base_module>/<project-name>` if a
+base module is configured, otherwise just `<project-name>`.
 
-| Flag           | Description                                            |
-| -------------- | ------------------------------------------------------- |
-| `-p, --path`   | Directory to scaffold into (defaults to the cwd)         |
-| `-g, --git`    | Run `git init`, `git add -A`, and an initial commit      |
-| `-v, --verbose`| Print each file rendered and each command run            |
+| Flag            | Description                                         |
+| --------------- | --------------------------------------------------- |
+| `-p, --path`    | Directory to scaffold into (defaults to the cwd)     |
+| `-g, --git`     | Run `git init`, `git add -A`, and an initial commit  |
+| `--set k=v`     | Override a language-specific value (repeatable)      |
+| `-v, --verbose` | Print each file rendered and each command run        |
+
+Values resolve in this order, first match winning:
+
+1. `--set` on the command line
+2. Forge's config file
+3. The language's built-in default
+
+Unknown `--set` keys are rejected rather than ignored, so a typo fails loudly.
+
+| Language | Accepted `--set` keys      |
+| -------- | -------------------------- |
+| `go`     | `module_path`, `go_version` |
+| `python` | `min_python`                |
 
 ## Available templates
 
-| Template    | Description                                                                                          |
-| ----------- | ----------------------------------------------------------------------------------------------------- |
-| `cli_cobra` | Cobra-based CLI application with a root command and one example subcommand, plus a pinned `go.mod`.    |
+| Template          | Description                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| `go/cli_cobra`    | Cobra-based CLI application with a root command and one example subcommand, plus a pinned `go.mod`. |
+| `python/cli`      | Minimal Python CLI. Work in progress — not yet usable.                                              |
 
 ## Writing a template
 
-Templates live under `internal/forger/templates/<name>/` and are embedded
-into the binary at build time. A template is:
+Templates live under `internal/forger/templates/<language>/<name>/` and are
+embedded into the binary at build time. A template is:
 
-- A `template.yaml` with `short` and `long` descriptions (used by `forge list`).
-- Any number of `*.go.tmpl` (or other) files, laid out exactly as they
-  should appear in the generated project. The `.tmpl` suffix is stripped
-  on render.
+- A `template.yaml` declaring its `language`, plus `short` and `long`
+  descriptions (used by `forge list`):
 
-Templates are rendered with Go's `text/template` against a `Project`
-struct, so files can reference:
+  ```yaml
+  language: go
+  short: "Cobra-based CLI application"
+  long: >
+    A longer description, shown by `forge list -v`.
+  ```
+
+  The `language` must match the folder the template lives in, and must be a
+  registered language — a test enforces both.
+
+- Any number of files, laid out exactly as they should appear in the
+  generated project. A `.tmpl` suffix is stripped on render.
+
+Templates are rendered with Go's `text/template` against a per-language
+context, so the fields available depend on the language. Every language
+provides:
 
 - `{{.Name}}` — the project name
-- `{{.ModulePath}}` — the resolved Go module path
-- `{{.OutputDir}}` — the absolute output directory
-- `{{.Template}}` — the template name
+
+Go templates additionally get:
+
+- `{{.ModulePath}}` — the resolved module path
+- `{{.GoVersion}}` — the Go version for `go.mod`
+
+Python templates additionally get:
+
+- `{{.DistName}}` — the project name with underscores normalised to hyphens
+- `{{.ImportName}}` — the project name with hyphens normalised to underscores
+- `{{.MinPython}}` — the minimum Python version
+
+## Adding a language
+
+Everything about a language lives in one file, `internal/forger/lang_<name>.go`.
+Define a type implementing `Language`, register it in `init()`, and declare
+its render context alongside it:
+
+```go
+type rustLang struct{}
+
+func init() { RegisterLanguage(rustLang{}) }
+
+func (rustLang) Name() string { return "rust" }
+
+func (rustLang) Context(p *Project, cfg *config.Config) (any, error) { ... }
+
+func (rustLang) PostProcess(dir string, verbose bool) error { ... }
+
+// Run in the generated project to prove it is valid.
+func (rustLang) VerifyCmd() []string { return []string{"cargo", "check"} }
+```
+
+Then add templates under `internal/forger/templates/rust/`. No other file
+needs to change — the registry is populated at package init.
+
+While a language is still being built out, implement the optional
+`Unimplemented` interface to keep it registered but refuse to scaffold it:
+
+```go
+func (rustLang) NotImplementedReason() string { return "templates are stubs" }
+```
+
+Deleting that one method is all it takes to enable the language.
 
 ## License
 

@@ -87,3 +87,10 @@ func configPath() (string, error) {
 
 	return filepath.Join(configDir, "forge", "config.yaml"), nil
 }
+
+func (c *Config) ModulePathFor(projectName string) string {
+	if c.BaseModule == "" {
+		return projectName
+	}
+	return c.BaseModule + "/" + projectName
+}
